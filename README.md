@@ -21,8 +21,8 @@
 插件支持解析以下格式的 JSON 日志：
 
 ```json
-{"severity":"WARN","eventTime":"2025-04-24T18:25:24.278+0800","caller":"config-center-sdk-go@v0.6.0/main.go:44","message":"unknown keys received","keys":["enable-sale-rule-platform","hubspot-form-submit-match-ae-meta","hubspot-private-app-token","sale-rule-condition-fields","sale-rule-group-mapping","sale-rule-run-timeout-second"]}
-{"severity":"INFO","eventTime":"2025-04-24T18:25:24.278+0800","caller":"config-center-sdk-go@v0.6.0/main.go:44","message":"initialized with active version","version":"0f5bfb60ab1a4d71b52c12dc880304d6"}
+{"severity":"WARN","eventTime":"2025-04-24T18:25:24.278+0800","caller":"","message":"unknown keys received","keys":[]}
+{"severity":"INFO","eventTime":"2025-04-24T18:25:24.278+0800","caller":"","message":"initialized with active version","version":""}
 ```
 
 ## 安装方法
@@ -39,7 +39,7 @@
 1. 克隆该仓库
 
    ```
-   git clone https://github.com/your-username/go-json-log-viewer.git
+   git clone https://github.com/YesmanCong/go-zap-json-log-viewer.git
    ```
 
 2. 安装依赖并编译
