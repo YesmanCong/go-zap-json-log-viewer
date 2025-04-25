@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
-// 定义日志严重级别对应的颜色
-const severityColors = {
+// 默认日志严重级别对应的颜色
+const defaultSeverityColors = {
     'DEBUG': '#6A737D', // 灰色
     'INFO': '#0366D6',  // 蓝色
     'WARN': '#FFAB00',  // 黄色
@@ -9,6 +9,23 @@ const severityColors = {
     'ERROR': '#D73A49', // 红色
     'FATAL': '#CB2431'  // 深红色
 };
+
+// 存储当前严重级别颜色
+let severityColors = { ...defaultSeverityColors };
+
+// 从配置中获取颜色设置
+function updateColorsFromConfig() {
+    const config = vscode.workspace.getConfiguration('goJsonLogViewer');
+    
+    severityColors = {
+        'DEBUG': config.get('colors.debug', defaultSeverityColors.DEBUG),
+        'INFO': config.get('colors.info', defaultSeverityColors.INFO),
+        'WARN': config.get('colors.warn', defaultSeverityColors.WARN),
+        'WARNING': config.get('colors.warn', defaultSeverityColors.WARN), // 使用相同的warn配置
+        'ERROR': config.get('colors.error', defaultSeverityColors.ERROR),
+        'FATAL': config.get('colors.fatal', defaultSeverityColors.FATAL)
+    };
+}
 
 // 存储当前是否启用插件
 let isEnabled = true;
@@ -20,6 +37,9 @@ let logOutputChannel: vscode.OutputChannel;
 let webviewPanel: vscode.WebviewPanel | null = null;
 let logBuffer: string[] = [];
 
+// 存储文本编辑器装饰器类型
+let decorationTypes: Record<string, vscode.TextEditorDecorationType> = {};
+
 // 定义接口以支持调试事件的类型
 interface DebugOutputEvent {
     event: string;
@@ -29,24 +49,34 @@ interface DebugOutputEvent {
     };
 }
 
-function activate(context: vscode.ExtensionContext) {
-    console.log("Go JSON Log Viewer 已激活");
-    vscode.window.showInformationMessage('Go JSON Log Viewer 已激活');
-    
+// 插件被激活时调用
+export function activate(context: vscode.ExtensionContext) {
+    console.log('Go JSON Log Viewer activated');
+
     // 初始化输出通道
-    logOutputChannel = vscode.window.createOutputChannel('Go JSON Log');
+    logOutputChannel = vscode.window.createOutputChannel('JSON Log Output');
     
-    // 创建装饰器类型
-    const decorationTypes: Record<string, vscode.TextEditorDecorationType> = {};
-    for (const [severity, color] of Object.entries(severityColors)) {
-        decorationTypes[severity] = vscode.window.createTextEditorDecorationType({
-            color,
-            fontWeight: severity === 'ERROR' || severity === 'FATAL' ? 'bold' : 'normal'
-        });
-    }
+    // 从配置中加载颜色设置
+    updateColorsFromConfig();
     
+    // 监听配置变更
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('goJsonLogViewer')) {
+                updateColorsFromConfig();
+                // 如果有活跃的webview，则刷新以应用新颜色
+                if (webviewPanel) {
+                    updateWebViewStyles();
+                    updateWebView();
+                }
+                // 重新应用装饰器
+                applyDecorationsToVisibleEditors();
+            }
+        })
+    );
+
     // 注册启用命令
-    let enableCommand = vscode.commands.registerCommand('go-json-log-viewer.enable', () => {
+    const enableCommand = vscode.commands.registerCommand('go-json-log-viewer.enable', () => {
         isEnabled = true;
         vscode.window.showInformationMessage('已启用Go JSON日志高亮');
     });
@@ -61,6 +91,14 @@ function activate(context: vscode.ExtensionContext) {
     let openLogViewerCommand = vscode.commands.registerCommand('go-json-log-viewer.openViewer', () => {
         createOrShowWebView(context.extensionUri);
     });
+    
+    // 创建装饰器类型
+    for (const [severity, color] of Object.entries(severityColors)) {
+        decorationTypes[severity] = vscode.window.createTextEditorDecorationType({
+            color,
+            fontWeight: severity === 'ERROR' || severity === 'FATAL' ? 'bold' : 'normal'
+        });
+    }
     
     // 更新装饰
     function updateDecorations(editor: vscode.TextEditor) {
@@ -121,6 +159,9 @@ function activate(context: vscode.ExtensionContext) {
         );
 
         webviewPanel.webview.html = getWebviewContent();
+        
+        // 创建后立即应用动态样式
+        updateWebViewStyles();
 
         webviewPanel.onDidDispose(
             () => {
@@ -168,11 +209,6 @@ function activate(context: vscode.ExtensionContext) {
                     display: inline-block;
                     min-width: 60px;
                 }
-                .DEBUG { color: #6A737D; }
-                .INFO { color: #0366D6; }
-                .WARN, .WARNING { color: #FFAB00; }
-                .ERROR { color: #D73A49; font-weight: bold; }
-                .FATAL { color: #CB2431; font-weight: bold; }
                 .timestamp {
                     color: #555;
                     margin-right: 8px;
@@ -201,7 +237,12 @@ function activate(context: vscode.ExtensionContext) {
                 .clear-btn:hover {
                     background: #ddd;
                 }
+                /* 动态样式将由updateWebViewStyles函数注入 */
+                #dynamicStyles {
+                    /* 动态CSS将在这里注入 */
+                }
             </style>
+            <style id="dynamicStyles"></style>
         </head>
         <body>
             <button class="clear-btn" onclick="clearLogs()">清除日志</button>
@@ -209,6 +250,7 @@ function activate(context: vscode.ExtensionContext) {
             <script>
                 const vscode = acquireVsCodeApi();
                 const logContainer = document.getElementById('logContainer');
+                const dynamicStyles = document.getElementById('dynamicStyles');
 
                 // 接收消息
                 window.addEventListener('message', event => {
@@ -222,6 +264,9 @@ function activate(context: vscode.ExtensionContext) {
                         logContainer.scrollTop = logContainer.scrollHeight;
                     } else if (message.type === 'clear') {
                         logContainer.innerHTML = '';
+                    } else if (message.type === 'updateStyles') {
+                        // 更新动态样式
+                        dynamicStyles.textContent = message.css;
                     }
                 });
 
@@ -236,16 +281,41 @@ function activate(context: vscode.ExtensionContext) {
         </html>`;
     }
 
+    // 更新WebView样式
+    function updateWebViewStyles() {
+        if (webviewPanel) {
+            let css = '';
+            for (const [severity, color] of Object.entries(severityColors)) {
+                css += `.${severity} { color: ${color}; `;
+                if (severity === 'ERROR' || severity === 'FATAL') {
+                    css += 'font-weight: bold; ';
+                }
+                css += '}\n';
+            }
+            
+            webviewPanel.webview.postMessage({
+                type: "updateStyles",
+                css: css
+            });
+        }
+    }
+
     // 更新WebView内容
     function updateWebView() {
-        if (webviewPanel && logBuffer.length > 0) {
-            logBuffer.forEach((logHtml) => {
-                webviewPanel!.webview.postMessage({
-                    type: "addLog",
-                    html: logHtml,
+        if (webviewPanel) {
+            // 首先更新样式
+            updateWebViewStyles();
+            
+            // 然后更新日志内容
+            if (logBuffer.length > 0) {
+                logBuffer.forEach((logHtml) => {
+                    webviewPanel!.webview.postMessage({
+                        type: "addLog",
+                        html: logHtml,
+                    });
                 });
-            });
-            logBuffer = [];
+                logBuffer = [];
+            }
         }
     }
 
@@ -449,6 +519,17 @@ function activate(context: vscode.ExtensionContext) {
         openLogViewerCommand,
         logOutputChannel
     );
+    
+    /**
+     * 对所有可见编辑器重新应用日志装饰器
+     */
+    function applyDecorationsToVisibleEditors() {
+        vscode.window.visibleTextEditors.forEach(editor => {
+            if (isEnabled && editor.document.languageId === 'json-log') {
+                updateDecorations(editor);
+            }
+        });
+    }
 }
 
 function deactivate() {

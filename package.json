@@ -2,7 +2,7 @@
   "name": "go-json-log-viewer",
   "displayName": "Go JSON Log Viewer",
   "description": "高亮显示Go语言JSON格式日志，根据severity字段区分日志级别",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "vscode-user",
   "engines": {
     "vscode": "^1.60.0"
@@ -31,7 +31,42 @@
         "command": "go-json-log-viewer.openViewer",
         "title": "打开Go JSON彩色日志查看器"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Go JSON Log Viewer",
+      "properties": {
+        "goJsonLogViewer.colors.debug": {
+          "type": "string",
+          "default": "#6A737D",
+          "description": "DEBUG级别日志的颜色",
+          "format": "color"
+        },
+        "goJsonLogViewer.colors.info": {
+          "type": "string",
+          "default": "#0366D6",
+          "description": "INFO级别日志的颜色",
+          "format": "color"
+        },
+        "goJsonLogViewer.colors.warn": {
+          "type": "string",
+          "default": "#FFAB00",
+          "description": "WARN/WARNING级别日志的颜色",
+          "format": "color"
+        },
+        "goJsonLogViewer.colors.error": {
+          "type": "string",
+          "default": "#D73A49",
+          "description": "ERROR级别日志的颜色",
+          "format": "color"
+        },
+        "goJsonLogViewer.colors.fatal": {
+          "type": "string",
+          "default": "#CB2431",
+          "description": "FATAL级别日志的颜色",
+          "format": "color"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

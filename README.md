@@ -45,7 +45,6 @@
 2. 安装依赖并编译
 
    ```
-   cd go-json-log-viewer
    npm install
    npm run compile
    ```
@@ -59,7 +58,7 @@
 
 4. 安装 VSIX 文件
    ```
-   code --install-extension go-json-log-viewer-0.0.1.vsix
+   code --install-extension go-json-log-viewer-0.0.2.vsix
    ```
 
 ## 使用方法
@@ -70,6 +69,32 @@
    - 启用高亮：打开命令面板（Ctrl+Shift+P / Cmd+Shift+P），输入 "启用 Go JSON 日志高亮"
    - 禁用高亮：打开命令面板（Ctrl+Shift+P / Cmd+Shift+P），输入 "禁用 Go JSON 日志高亮"
 
+## 自定义颜色配置
+
+您可以根据个人喜好自定义不同日志级别的颜色。有两种方式可以修改颜色配置：
+
+### 通过设置界面
+
+1. 打开 VSCode 设置（文件 > 首选项 > 设置，或按 Ctrl+, / Cmd+,）
+2. 搜索 "goJsonLogViewer.colors"
+3. 修改对应级别的颜色值
+
+### 通过 settings.json 文件
+
+在 settings.json 文件中添加以下配置（可根据需要修改颜色值）：
+
+```json
+{
+  "goJsonLogViewer.colors.debug": "#6A737D",
+  "goJsonLogViewer.colors.info": "#0366D6",
+  "goJsonLogViewer.colors.warn": "#FFAB00",
+  "goJsonLogViewer.colors.error": "#D73A49",
+  "goJsonLogViewer.colors.fatal": "#CB2431"
+}
+```
+
+修改颜色配置后，颜色变更将立即应用于打开的编辑器和日志查看器。
+
 ## 提示
 
 - 如果您的日志格式与示例不同，可能需要修改插件的源代码以适应您的日志格式
@@ -78,4 +103,7 @@
 ## 问题反馈
 
 如果您遇到任何问题或有改进建议，请在 GitHub 仓库中提交 Issue。
+
 # go-zap-json-log-viewer
+
+https://github.com/YesmanCong/go-zap-json-log-viewer
