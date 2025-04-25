@@ -1,5 +1,5 @@
-{"severity":"DEBUG","eventTime":"2025-04-24T18:25:20.278+0800","caller":"config-center-sdk-go@v0.6.0/debug.go:15","message":"starting debug session","session_id":"12345"}
-{"severity":"INFO","eventTime":"2025-04-24T18:25:21.278+0800","caller":"config-center-sdk-go@v0.6.0/main.go:44","message":"application initialized","version":"0.1.0"}
-{"severity":"WARN","eventTime":"2025-04-24T18:25:24.278+0800","caller":"config-center-sdk-go@v0.6.0/main.go:44","message":"unknown keys received","keys":["enable-sale-rule-platform","hubspot-form-submit-match-ae-meta","hubspot-private-app-token","sale-rule-condition-fields","sale-rule-group-mapping","sale-rule-run-timeout-second"]}
-{"severity":"ERROR","eventTime":"2025-04-24T18:25:30.278+0800","caller":"config-center-sdk-go@v0.6.0/client.go:101","message":"failed to connect to database","error":"connection refused"}
-{"severity":"FATAL","eventTime":"2025-04-24T18:25:35.278+0800","caller":"config-center-sdk-go@v0.6.0/app.go:255","message":"unrecoverable system error","error":"out of memory","stacktrace":"goroutine 1 [running]:\\nmain.main()\\n\\t/app/main.go:15 +0x31"} 
+{"severity":"DEBUG","eventTime":"2025-04-24T18:25:20.278+0800","caller":"","message":"starting debug session","session_id":"12345"}
+{"severity":"INFO","eventTime":"2025-04-24T18:25:21.278+0800","caller":"","message":"application initialized","version":"0.1.0"}
+{"severity":"WARN","eventTime":"2025-04-24T18:25:24.278+0800","caller":"","message":"unknown keys received","keys":[]}
+{"severity":"ERROR","eventTime":"2025-04-24T18:25:30.278+0800","caller":"","message":"failed to connect to database","error":"connection refused"}
+{"severity":"FATAL","eventTime":"2025-04-24T18:25:35.278+0800","caller":"","message":"unrecoverable system error","error":"out of memory","stacktrace":"goroutine 1 [running]:\\nmain.main()\\n\\t/app/main.go:15 +0x31"} 
