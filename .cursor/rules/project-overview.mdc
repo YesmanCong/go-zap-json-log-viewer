@@ -1,0 +1,29 @@
+---
+description: 项目概述，描述了扩展的主要功能和文件结构
+globs: 
+alwaysApply: false
+---
+# Go JSON Log Viewer项目概述
+
+这是一个VSCode扩展，用于高亮显示Go语言JSON格式日志，根据severity字段区分日志级别并提供彩色视图。
+
+## 主要功能
+
+- 根据JSON日志中的severity字段识别日志级别（DEBUG、INFO、WARN/WARNING、ERROR、FATAL）
+- 使用不同颜色高亮显示不同级别的日志
+- 提供独立的彩色日志查看器WebView
+- 支持在调试过程中捕获和格式化日志
+- 允许自定义各日志级别的颜色
+
+## 项目结构
+
+- [src/extension.ts](mdc:src/extension.ts) - 扩展的主要源代码，包含所有功能实现
+- [package.json](mdc:package.json) - 扩展配置文件，定义命令、配置选项和元数据
+- [webpack.config.js](mdc:webpack.config.js) - 打包配置
+- [examples/](mdc:examples) - 示例日志文件
+
+## 扩展命令
+
+- `go-json-log-viewer.enable` - 启用Go JSON日志高亮
+- `go-json-log-viewer.disable` - 禁用Go JSON日志高亮
+- `go-json-log-viewer.openViewer` - 打开Go JSON彩色日志查看器
