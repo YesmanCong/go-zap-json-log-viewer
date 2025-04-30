@@ -89,7 +89,8 @@ export function activate(context: vscode.ExtensionContext) {
     
     // 注册打开彩色日志视图命令
     let openLogViewerCommand = vscode.commands.registerCommand('go-json-log-viewer.openViewer', () => {
-        createOrShowWebView(context.extensionUri);
+        // 用户手动打开彩色日志视图时，应该获取焦点（preserveFocus设置为false）
+        createOrShowWebView(context.extensionUri, false);
     });
     
     // 创建装饰器类型
@@ -138,13 +139,13 @@ export function activate(context: vscode.ExtensionContext) {
     }
     
     // 创建或显示WebView面板
-    function createOrShowWebView(extensionUri: vscode.Uri) {
+    function createOrShowWebView(extensionUri: vscode.Uri, preserveFocus: boolean = true) {
         const columnToShowIn = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : vscode.ViewColumn.One;
 
         if (webviewPanel) {
-            webviewPanel.reveal(columnToShowIn || vscode.ViewColumn.One);
+            webviewPanel.reveal(columnToShowIn || vscode.ViewColumn.One, preserveFocus);
             return;
         }
 
@@ -175,6 +176,16 @@ export function activate(context: vscode.ExtensionContext) {
         if (logBuffer.length > 0) {
             updateWebView();
         }
+        
+        // 如果需要保持原焦点，则主动将焦点还给之前的活跃编辑器
+        if (preserveFocus && vscode.window.activeTextEditor) {
+            setTimeout(() => {
+                vscode.window.showTextDocument(
+                    vscode.window.activeTextEditor!.document,
+                    vscode.window.activeTextEditor!.viewColumn
+                );
+            }, 100);
+        }
     }
 
     // 获取WebView内容
@@ -194,15 +205,96 @@ export function activate(context: vscode.ExtensionContext) {
                     white-space: pre-wrap;
                     word-wrap: break-word;
                 }
+                .top-bar {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: #f5f5f5;
+                    border-bottom: 1px solid #ddd;
+                    padding: 8px;
+                    display: flex;
+                    align-items: center;
+                    z-index: 100;
+                }
+                .search-container {
+                    display: flex;
+                    align-items: center;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                .search-input {
+                    flex: 1;
+                    padding: 5px 10px;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    font-size: 14px;
+                    margin-right: 5px;
+                }
+                .search-btn, .clear-search-btn, .toggle-all-btn, .clear-btn {
+                    padding: 5px 10px;
+                    background: #eee;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    margin-left: 5px;
+                }
+                .search-btn:hover, .clear-search-btn:hover, .toggle-all-btn:hover, .clear-btn:hover {
+                    background: #ddd;
+                }
                 .log-container {
                     width: 100%;
                     overflow-y: auto;
                     max-height: 100vh;
+                    margin-top: 50px; /* 为顶部栏留出空间 */
                 }
                 .log-entry {
-                    margin-bottom: 4px;
+                    display: flex;
+                    margin-bottom: 6px;
                     border-bottom: 1px solid #eee;
-                    padding-bottom: 4px;
+                    padding-bottom: 6px;
+                    position: relative;
+                }
+                .log-entry.hidden {
+                    display: none;
+                }
+                .log-entry.highlight {
+                    background-color: #fffde7;
+                }
+                .toggle-btn {
+                    cursor: pointer;
+                    width: 16px;
+                    text-align: center;
+                    font-weight: bold;
+                    user-select: none;
+                    color: #666;
+                    margin-right: 5px;
+                    align-self: flex-start;
+                }
+                .toggle-btn:hover {
+                    color: #000;
+                }
+                .log-metadata {
+                    flex: 0 0 auto;
+                    width: 30%;
+                    min-width: 200px;
+                    max-width: 350px;
+                    padding-right: 10px;
+                    border-right: 1px solid #eee;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .meta-item {
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    overflow: hidden;
+                    margin-bottom: 2px;
+                }
+                .log-content {
+                    flex: 1;
+                    padding-left: 15px;
+                    overflow-wrap: break-word;
                 }
                 .severity {
                     font-weight: bold;
@@ -217,25 +309,27 @@ export function activate(context: vscode.ExtensionContext) {
                     color: #6F42C1;
                 }
                 .message {
-                    margin-left: 8px;
+                    font-weight: normal;
                 }
                 .extra {
-                    margin-left: 20px;
+                    margin-top: 4px;
                     color: #666;
                     font-size: 12px;
                 }
-                .clear-btn {
-                    position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    padding: 5px 10px;
-                    background: #eee;
-                    border: 1px solid #ccc;
-                    border-radius: 3px;
-                    cursor: pointer;
+                .collapsed .log-content {
+                    display: none;
                 }
-                .clear-btn:hover {
-                    background: #ddd;
+                .collapsed .log-metadata {
+                    border-right: none;
+                }
+                .matched-text {
+                    background-color: #fff59d;
+                    font-weight: bold;
+                }
+                .search-stats {
+                    margin-left: 10px;
+                    color: #666;
+                    font-size: 12px;
                 }
                 /* 动态样式将由updateWebViewStyles函数注入 */
                 #dynamicStyles {
@@ -245,12 +339,27 @@ export function activate(context: vscode.ExtensionContext) {
             <style id="dynamicStyles"></style>
         </head>
         <body>
-            <button class="clear-btn" onclick="clearLogs()">清除日志</button>
+            <div class="top-bar">
+                <div class="search-container">
+                    <input type="text" class="search-input" id="searchInput" placeholder="输入关键字搜索..." />
+                    <button class="search-btn" onclick="searchLogs()">搜索</button>
+                    <button class="clear-search-btn" onclick="clearSearch()">清除搜索</button>
+                    <span class="search-stats" id="searchStats"></span>
+                </div>
+                <button class="toggle-all-btn" onclick="toggleAllLogs()">展开/折叠全部</button>
+                <button class="clear-btn" onclick="clearLogs()">清除日志</button>
+            </div>
             <div id="logContainer" class="log-container"></div>
             <script>
                 const vscode = acquireVsCodeApi();
                 const logContainer = document.getElementById('logContainer');
                 const dynamicStyles = document.getElementById('dynamicStyles');
+                const searchInput = document.getElementById('searchInput');
+                const searchStats = document.getElementById('searchStats');
+                
+                // 默认所有日志都是折叠状态
+                let allCollapsed = true;
+                let currentSearchTerm = '';
 
                 // 接收消息
                 window.addEventListener('message', event => {
@@ -258,12 +367,18 @@ export function activate(context: vscode.ExtensionContext) {
 
                     if (message.type === 'addLog') {
                         const logEntry = document.createElement('div');
-                        logEntry.className = 'log-entry';
+                        logEntry.className = 'log-entry collapsed'; // 默认是折叠状态
                         logEntry.innerHTML = message.html;
                         logContainer.appendChild(logEntry);
                         logContainer.scrollTop = logContainer.scrollHeight;
+                        
+                        // 如果有搜索关键字，应用搜索过滤
+                        if (currentSearchTerm) {
+                            applySearch(logEntry, currentSearchTerm);
+                        }
                     } else if (message.type === 'clear') {
                         logContainer.innerHTML = '';
+                        clearSearch();
                     } else if (message.type === 'updateStyles') {
                         // 更新动态样式
                         dynamicStyles.textContent = message.css;
@@ -275,7 +390,155 @@ export function activate(context: vscode.ExtensionContext) {
                         command: 'clearLogs'
                     });
                     logContainer.innerHTML = '';
+                    clearSearch();
                 }
+                
+                // 切换单个日志的折叠状态
+                function toggleLogEntry(element) {
+                    const logEntry = element.closest('.log-entry');
+                    if (logEntry.classList.contains('collapsed')) {
+                        logEntry.classList.remove('collapsed');
+                    } else {
+                        logEntry.classList.add('collapsed');
+                    }
+                }
+                
+                // 切换所有日志的折叠状态
+                function toggleAllLogs() {
+                    const logEntries = document.querySelectorAll('.log-entry:not(.hidden)');
+                    allCollapsed = !allCollapsed;
+                    
+                    logEntries.forEach(entry => {
+                        if (allCollapsed) {
+                            entry.classList.add('collapsed');
+                        } else {
+                            entry.classList.remove('collapsed');
+                        }
+                    });
+                }
+                
+                // 对日志内容进行搜索
+                function searchLogs() {
+                    const searchTerm = searchInput.value.trim().toLowerCase();
+                    currentSearchTerm = searchTerm;
+                    
+                    if (!searchTerm) {
+                        clearSearch();
+                        return;
+                    }
+                    
+                    const allLogs = document.querySelectorAll('.log-entry');
+                    let matchCount = 0;
+                    
+                    allLogs.forEach(log => {
+                        applySearch(log, searchTerm);
+                        if (!log.classList.contains('hidden')) {
+                            matchCount++;
+                        }
+                    });
+                    
+                    // 更新搜索统计信息
+                    searchStats.textContent = "找到 " + matchCount + " 条匹配日志";
+                    
+                    // 如果有匹配，自动展开所有匹配的日志
+                    if (matchCount > 0) {
+                        allCollapsed = false;
+                        document.querySelectorAll('.log-entry:not(.hidden)').forEach(entry => {
+                            entry.classList.remove('collapsed');
+                        });
+                    }
+                }
+                
+                // 对单个日志条目应用搜索过滤
+                function applySearch(logEntry, searchTerm) {
+                    // 移除之前的高亮
+                    const oldHighlights = logEntry.querySelectorAll('.matched-text');
+                    oldHighlights.forEach(el => {
+                        const parent = el.parentNode;
+                        parent.replaceChild(document.createTextNode(el.textContent), el);
+                    });
+                    
+                    const logText = logEntry.textContent.toLowerCase();
+                    const hasMatch = logText.includes(searchTerm);
+                    
+                    // 显示或隐藏日志
+                    if (hasMatch) {
+                        logEntry.classList.remove('hidden');
+                        
+                        // 高亮匹配文本
+                        highlightMatches(logEntry, searchTerm);
+                    } else {
+                        logEntry.classList.add('hidden');
+                    }
+                }
+                
+                // 高亮匹配的文本
+                function highlightMatches(element, searchTerm) {
+                    if (element.nodeType === 3) { // 文本节点
+                        const text = element.nodeValue;
+                        const lcText = text.toLowerCase();
+                        let index = lcText.indexOf(searchTerm);
+                        
+                        if (index >= 0) {
+                            const matchLength = searchTerm.length;
+                            const beforeMatch = document.createTextNode(text.substring(0, index));
+                            const matched = document.createElement('span');
+                            matched.className = 'matched-text';
+                            matched.textContent = text.substring(index, index + matchLength);
+                            const afterMatch = document.createTextNode(text.substring(index + matchLength));
+                            const parent = element.parentNode;
+                            
+                            parent.insertBefore(beforeMatch, element);
+                            parent.insertBefore(matched, element);
+                            parent.insertBefore(afterMatch, element);
+                            parent.removeChild(element);
+                            
+                            // 递归处理剩余部分
+                            highlightMatches(afterMatch, searchTerm);
+                        }
+                    } else if (element.nodeType === 1) { // 元素节点
+                        // 只处理非脚本和样式元素
+                        if (element.tagName !== 'SCRIPT' && element.tagName !== 'STYLE') {
+                            Array.from(element.childNodes).forEach(child => {
+                                highlightMatches(child, searchTerm);
+                            });
+                        }
+                    }
+                }
+                
+                // 清除搜索结果，显示所有日志
+                function clearSearch() {
+                    searchInput.value = '';
+                    currentSearchTerm = '';
+                    searchStats.textContent = '';
+                    
+                    // 显示所有日志，移除高亮
+                    const allLogs = document.querySelectorAll('.log-entry');
+                    allLogs.forEach(log => {
+                        log.classList.remove('hidden');
+                        
+                        // 移除高亮
+                        const highlights = log.querySelectorAll('.matched-text');
+                        highlights.forEach(el => {
+                            const parent = el.parentNode;
+                            parent.replaceChild(document.createTextNode(el.textContent), el);
+                        });
+                    });
+                }
+                
+                // 添加回车键搜索功能
+                searchInput.addEventListener('keyup', function(event) {
+                    if (event.key === 'Enter') {
+                        searchLogs();
+                    }
+                });
+                
+                // 事件委托，处理折叠按钮的点击事件
+                logContainer.addEventListener('click', function(event) {
+                    if (event.target.classList.contains('toggle-btn')) {
+                        toggleLogEntry(event.target);
+                    }
+                });
             </script>
         </body>
         </html>`;
@@ -385,21 +648,23 @@ export function activate(context: vscode.ExtensionContext) {
                         
                         // 为WebView准备HTML
                         let logHtml = `
-                          <span class="timestamp">[${time}]</span>
-                          <span class="severity ${severity}">[${severity}]</span>
-                          <span class="caller">[${caller}]:</span>
-                          <span class="message">${message}</span>
+                          <div class="toggle-btn" title="展开/折叠日志">▶</div>
+                          <div class="log-metadata">
+                            <span class="meta-item timestamp">[${time}]</span>
+                            <span class="meta-item severity ${severity}">[${severity}]</span>
+                            <span class="meta-item caller">[${caller}]</span>
+                          </div>
+                          <div class="log-content">
+                            <span class="message">${message}</span>
+                            ${extraInfo ? `<div class="extra">${extraInfo}</div>` : ''}
+                          </div>
                         `;
-
-                        if (extraInfo) {
-                            logHtml += `<div class="extra">${extraInfo}</div>`;
-                        }
 
                         // 添加到WebView
                         addLogToWebView(logHtml);
                         
-                        // 显示输出通道
-                        logOutputChannel.show(true);
+                        // 显示输出通道但不切换焦点
+                        logOutputChannel.show(false);
                     }
                 } else {
                     // 尝试在非JSON文本中查找并解析日志格式 [timestamp] [level] [caller]: message
@@ -418,15 +683,17 @@ export function activate(context: vscode.ExtensionContext) {
 
                         // 为WebView准备HTML
                         let logHtml = `
-                          <span class="timestamp">[${time}]</span>
-                          <span class="severity ${severity}">[${severity}]</span>
-                          <span class="caller">[${caller}]:</span>
-                          <span class="message">${message}</span>
+                          <div class="toggle-btn" title="展开/折叠日志">▶</div>
+                          <div class="log-metadata">
+                            <span class="meta-item timestamp">[${time}]</span>
+                            <span class="meta-item severity ${severity}">[${severity}]</span>
+                            <span class="meta-item caller">[${caller}]</span>
+                          </div>
+                          <div class="log-content">
+                            <span class="message">${message}</span>
+                            ${extra ? `<div class="extra">${extra}</div>` : ''}
+                          </div>
                         `;
-
-                        if (extra) {
-                            logHtml += `<div class="extra">${extra}</div>`;
-                        }
 
                         // 添加到WebView
                         addLogToWebView(logHtml);
@@ -452,10 +719,11 @@ export function activate(context: vscode.ExtensionContext) {
         console.log("调试会话已启动:", session.name);
         logOutputChannel.appendLine(`调试会话已启动: ${session.name}`);
         
-        // 自动打开彩色日志查看器
-        createOrShowWebView(context.extensionUri);
+        // 自动打开彩色日志查看器，但保持原焦点
+        createOrShowWebView(context.extensionUri, true);
         
-        logOutputChannel.show(true);
+        // 显示输出通道但不切换焦点
+        logOutputChannel.show(false);
     });
     
     // 监听调试控制台输出

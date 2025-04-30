@@ -1,0 +1,37 @@
+---
+description: 调试日志处理机制的实现说明
+globs: 
+alwaysApply: false
+---
+# 调试日志处理实现
+
+[src/extension.ts](mdc:src/extension.ts)中包含一套完整的调试日志处理机制，用于捕获、解析和显示调试会话中输出的日志。
+
+## 主要组件
+
+### 1. 调试输出处理核心
+
+`processDebugOutput`函数（305-393行）是处理调试输出的核心，它：
+- 接收调试输出字符串和可选的分类信息
+- 按行分割输出以分别处理每一行
+- 尝试解析每行为JSON格式或匹配结构化文本模式
+- 提取日志级别、时间、调用者、消息等信息
+- 格式化日志并分发到不同的显示通道
+
+### 2. 调试会话事件监听
+
+扩展监听多种调试相关事件：
+- `vscode.debug.onDidStartDebugSession`（396-406行）- 监听调试会话开始
+- `vscode.debug.registerDebugAdapterTrackerFactory`（409-420行）- 注册调试适配器跟踪工厂
+- `vscode.debug.onDidReceiveDebugSessionCustomEvent`（423-431行和434-443行）- 监听调试自定义事件
+
+### 3. 日志分发机制
+
+处理后的日志被分发到三个不同的通道：
+- VSCode输出通道（logOutputChannel）- 在控制台显示格式化的纯文本日志
+- WebView面板 - 显示带有颜色和格式的富文本日志
+- 编辑器装饰 - 在编辑器中直接高亮日志行
+
+### 4. 特殊调试事件处理
+
+实现了特殊的`DebugOutputEvent`接口（44-50行）用于类型安全地处理调试事件，确保正确提取和处理调试输出信息。

@@ -1,0 +1,51 @@
+---
+description: 支持的日志格式和配置选项
+globs: 
+alwaysApply: false
+---
+# 日志格式和配置
+
+## 支持的日志格式
+
+该扩展支持以下两种格式的日志：
+
+### 1. JSON格式日志
+
+JSON格式日志必须包含`severity`字段，可选包含以下字段：
+- `eventTime` - 事件时间
+- `message` - 日志消息
+- `caller` - 调用者信息
+- 其他任意字段将作为额外信息显示
+
+示例：
+```json
+{"severity":"INFO","eventTime":"2023-04-24T18:25:24.278+0800","caller":"main.go:25","message":"服务已启动","port":8080}
+```
+
+### 2. 结构化文本日志
+
+非JSON格式但符合以下模式的日志也受支持：
+`[timestamp] [level] [caller]: message`
+
+示例：
+```
+[2023-04-24T18:25:24.278+0800] [INFO] [main.go:25]: 服务已启动
+```
+
+## 配置选项
+
+所有配置选项定义在[package.json](mdc:package.json)中，可通过VSCode设置界面或直接编辑`settings.json`文件进行自定义：
+
+### 日志颜色配置
+
+```json
+{
+  "goJsonLogViewer.colors.debug": "#6A737D",  // DEBUG级别日志颜色（灰色）
+  "goJsonLogViewer.colors.info": "#0366D6",   // INFO级别日志颜色（蓝色）
+  "goJsonLogViewer.colors.warn": "#FFAB00",   // WARN/WARNING级别日志颜色（黄色）
+  "goJsonLogViewer.colors.error": "#D73A49",  // ERROR级别日志颜色（红色）
+  "goJsonLogViewer.colors.fatal": "#CB2431"   // FATAL级别日志颜色（深红色）
+}
+```
+
+修改配置后，颜色变更将立即应用于打开的编辑器和日志查看器。

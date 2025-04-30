@@ -1,0 +1,46 @@
+---
+description:  WebView日志查看器实现的详细说明
+globs: 
+alwaysApply: false
+---
+# WebView日志查看器实现
+
+[src/extension.ts](mdc:src/extension.ts)中实现了一个功能丰富的WebView日志查看器，用于以彩色方式显示JSON日志。
+
+## 主要组件
+
+### 1. WebView面板创建与管理
+
+`createOrShowWebView`函数（136-165行）负责创建或显示WebView面板。关键特点：
+- 保持上下文隐藏时保留（retainContextWhenHidden）
+- 支持JavaScript脚本
+- 实现面板关闭时的资源清理
+
+### 2. HTML内容生成
+
+`getWebviewContent`函数（166-221行）生成WebView的HTML内容，包括：
+- 基本的HTML结构和CSS样式
+- 日志条目的DOM结构定义
+- 客户端JavaScript脚本，用于处理通信和DOM操作
+- 清除日志按钮功能
+
+### 3. 样式管理
+
+`updateWebViewStyles`函数（223-243行）动态生成CSS样式，使用扩展配置中定义的颜色：
+- 为每个日志级别生成对应的CSS类
+- 支持配置更改时实时更新样式
+
+### 4. 通信机制
+
+WebView和扩展间通过消息传递进行通信：
+- 扩展向WebView发送的消息类型：
+  - `addLog` - 添加新的日志条目
+  - `clear` - 清除所有日志
+  - `updateStyles` - 更新样式定义
+
+- WebView向扩展发送的消息：
+  - `clearLogs` - 响应清除按钮点击
+
+### 5. 日志缓冲管理
+
+使用`logBuffer`数组（38行）缓存日志，确保在WebView尚未创建时不会丢失日志。
